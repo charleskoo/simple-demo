@@ -10,6 +10,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +36,9 @@ public class UserRest {
     private UserService userService;
 
     @GetMapping("get")
+    @Cacheable(value = "user", key = "#id")
     public User get(@RequestParam("id") Long id) {
+        log.info("查询用户【id】= {}", id);
         User user = userService.getById(id);
         return user;
     }
