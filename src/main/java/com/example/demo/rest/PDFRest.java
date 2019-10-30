@@ -18,7 +18,7 @@ public class PDFRest {
 
     @GetMapping("pdf")
     public String pdfReader() {
-        log.info("hello, pdf");
+//        log.info("hello, pdf");
         pDFService.read();
         return "success";
     }
