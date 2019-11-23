@@ -1,5 +1,7 @@
 package com.example.demo.rest;
 
+import java.io.File;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,10 +19,43 @@ public class PDFRest {
 
 	@GetMapping("pdf")
 	public String pdfReader() {
-		String sourceFileName = "C:/Users/charles.kou/Desktop/pdf/3.2.P.8稳定性考察组合图谱.pdf";
-		String destFileName = "C:/Users/charles.kou/Desktop/pdf/result/result";
-		pDFService.read(sourceFileName, destFileName + 0 + ".pdf");
+		File pdfFile = getFile("C:/pdf", ".pdf");
+		String textFileName = getTextFileName(pdfFile);
+		String destFileName = getDestTextFileName(pdfFile);
+		try {
+			pDFService.read(pdfFile, textFileName, destFileName);
+		} catch (Exception e) {
+			log.info(e.getMessage(), e);
+		}
 		return "success";
+	}
+
+	public static File getFile(String path, String suffix) {
+		File dir = new File(path);
+		File[] tempList = dir.listFiles();
+		for (File file : tempList) {
+			String fileName = file.getName();
+			if (file.isFile()) {
+				String fileSuffix = fileName.substring(fileName.lastIndexOf("."));
+				if (suffix.equals(fileSuffix)) {
+					return file;
+				}
+			}
+
+		}
+		return null;
+	}
+
+	public static String getTextFileName(File sourceFile) {
+		String sourceFileName = sourceFile.getAbsolutePath();
+		String pathPreFix = sourceFileName.substring(0, sourceFileName.lastIndexOf(".") + 1);
+		return pathPreFix + "txt";
+	}
+
+	public static String getDestTextFileName(File sourceFile) {
+		String parent = sourceFile.getParent();
+		String sourceFileName = sourceFile.getName();
+		return parent + File.separator + "result" + File.separator + sourceFileName;
 	}
 
 }

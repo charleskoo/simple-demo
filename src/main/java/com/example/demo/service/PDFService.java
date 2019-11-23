@@ -1,12 +1,16 @@
 package com.example.demo.service;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.List;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.PDPageTree;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.springframework.stereotype.Service;
 
@@ -19,79 +23,97 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PDFService {
 
-	private static final String FONT_FILE_PATH_SIMSUN = "C:/Users/charles.kou/Desktop/pdf/fonts/SimSun.ttf";
-	private static final String FONT_FILE_PATH_TIMES = "C:/Users/charles.kou/Desktop/pdf/fonts/TIMES.TTF";
+	private static final String FONT_FILE_PATH_SIMSUN = "C:/pdf/fonts/SimSun.ttf";
+	private static final String FONT_FILE_PATH_TIMES = "C:/pdf/fonts/TIMES.TTF";
 
-	public void read(String sourceFileName, String destFileName) {
+	public void read(File pdfFile, String textFileName, String destFileName) {
 		PDDocument doc = null;
 		try {
-			File file = new File(sourceFileName);
-			doc = PDDocument.load(file);
+			List<String> lines = readTextFile(textFileName);
 
-			PDPage page = doc.getPage(0);
+			doc = PDDocument.load(pdfFile);
+			PDPageTree pages = doc.getPages();
+			int count = pages.getCount();
+			int size = lines.size();
+			if (count != size) {
+				log.error("PDF页数与文本内容行数不匹配");
+				log.error("PDF页数: {}", count);
+				log.error("文本内容行数: {}", size);
+			}
 
+			// 1 - 字体加载
 			PDType0Font simSunFont = PDType0Font.load(doc, new File(FONT_FILE_PATH_SIMSUN));
 			PDType0Font timesFont = PDType0Font.load(doc, new File(FONT_FILE_PATH_TIMES));
-			PDPageContentStream contents = new PDPageContentStream(doc, page, PDPageContentStream.AppendMode.PREPEND,
-					true);
-			contents.beginText();
+
+			// 2 - 偏移量
 			float offsetx = 40;
 			float offsety = 50;
-			contents.newLineAtOffset(offsetx, offsety);
 
-			String str = "附图3.2.P.8- 1稳定性试验/影响因素/0天/有关物质/空白溶剂HPLC图谱";
-			List<FontFlagText> textList = Lists.newArrayList();
-			for (int i = 0; i < str.length(); i++) {
-				char charAt = str.charAt(i);
-				FontFlagText text = new FontFlagText();
-				text.setText(String.valueOf(charAt));
-				if (isChinese(charAt)) {
-					text.setFont_flag(1);
+			// 3 - 循环处理每页
+			for (int index = 0; index < count; index++) {
+				log.info("开始处理第{}页", (index + 1));
+				PDPage page = pages.get(index);
+				String text = lines.get(index);
+
+				PDPageContentStream contents = new PDPageContentStream(doc, page,
+						PDPageContentStream.AppendMode.PREPEND, true);
+				contents.beginText();
+				contents.newLineAtOffset(offsetx, offsety);
+
+				List<FontFlagText> textList = convertToFontFlagText(text);
+				for (FontFlagText fontFlagText : textList) {
+					if (fontFlagText.getFont_flag() == 1) {
+						contents.setFont(simSunFont, 10);
+					} else {
+						contents.setFont(timesFont, 10);
+					}
+					contents.showTextWithPositioning(new String[] { fontFlagText.getText() });
 				}
-				textList.add(text);
+
+				contents.endText();
+				contents.close();
 			}
 
-			for (FontFlagText fontFlagText : textList) {
-				if (fontFlagText.getFont_flag() == 1) {
-					contents.setFont(simSunFont, 10);
-				} else {
-					contents.setFont(timesFont, 10);
-				}
-				contents.showTextWithPositioning(new String[] { fontFlagText.getText() });
-			}
-
-			contents.endText();
-			contents.close();
-
+			// 保存文件
 			doc.save(destFileName);
 
+			// 关闭文件
 			doc.close();
 
 		} catch (IOException e) {
-
 			log.error(e.getMessage(), e);
 		}
 
 	}
 
-//	public static void main(String[] args) {
-//		String str = "附图3.2.P.8- 1稳定性试验/影响因素/0天/有关物质/空白溶剂HPLC图谱";
-//		List<FontFlagText> textList = Lists.newArrayList();
-//		for (int i = 0; i < str.length(); i++) {
-//			char charAt = str.charAt(i);
-//			FontFlagText text = new FontFlagText();
-//			text.setText(String.valueOf(charAt));
-//			if (isChinese(charAt)) {
-//				text.setFont_flag(1);
-//			}
-//			textList.add(text);
-//		}
-//
-//		List<FontFlagText> result = Lists.newArrayList();
-//		for (FontFlagText fontFlagText : textList) {
-//			System.out.println(fontFlagText.getFont_flag() + "\t" + fontFlagText.getText());
-//		}
-//	}
+	private List<FontFlagText> convertToFontFlagText(String text) {
+		List<FontFlagText> textList = Lists.newArrayList();
+		for (int i = 0; i < text.length(); i++) {
+			char charAt = text.charAt(i);
+			FontFlagText flagText = new FontFlagText();
+			flagText.setText(String.valueOf(charAt));
+			if (isChinese(charAt)) {
+				flagText.setFont_flag(1);
+			}
+			textList.add(flagText);
+		}
+		return textList;
+	}
+
+	private List<String> readTextFile(String textFileName) throws IOException {
+		List<String> lines = Lists.newArrayList();
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(textFileName), "UTF-8"));
+		String line = null;
+		while ((line = br.readLine()) != null) {
+
+			if (line.trim().length() > 0) {
+				lines.add(line);
+			}
+
+		}
+		br.close();
+		return lines;
+	}
 
 	public static boolean isChinese(char c) {
 		return c >= 0x4E00 && c <= 0x9FA5;
