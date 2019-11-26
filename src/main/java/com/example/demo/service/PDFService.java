@@ -60,7 +60,7 @@ public class PDFService {
 				contents.beginText();
 				contents.newLineAtOffset(offsetx, offsety);
 
-				List<FontFlagText> textList = convertToFontFlagText(text);
+				List<FontFlagText> textList = convertToFontFlagText(timesFont, text);
 				for (FontFlagText fontFlagText : textList) {
 					if (fontFlagText.getFont_flag() == 1) {
 						contents.setFont(simSunFont, 10);
@@ -77,22 +77,28 @@ public class PDFService {
 			// 保存文件
 			doc.save(destFileName);
 
-			// 关闭文件
-			doc.close();
-
 		} catch (IOException e) {
 			log.error(e.getMessage(), e);
+		} finally {
+			if (null != doc) {
+				try {
+					// 关闭文件
+					doc.close();
+				} catch (IOException e) {
+					log.error(e.getMessage(), e);
+				}
+			}
 		}
 
 	}
 
-	private List<FontFlagText> convertToFontFlagText(String text) {
+	private List<FontFlagText> convertToFontFlagText(PDType0Font enFont, String text) {
 		List<FontFlagText> textList = Lists.newArrayList();
 		for (int i = 0; i < text.length(); i++) {
 			char charAt = text.charAt(i);
 			FontFlagText flagText = new FontFlagText();
 			flagText.setText(String.valueOf(charAt));
-			if (isChinese(charAt)) {
+			if (!isCharacterEncodeable(enFont, charAt)) {
 				flagText.setFont_flag(1);
 			}
 			textList.add(flagText);
@@ -115,7 +121,20 @@ public class PDFService {
 		return lines;
 	}
 
-	public static boolean isChinese(char c) {
+	private boolean isCharacterEncodeable(PDType0Font font, char character) {
+		if (isChinese(character)) {
+			return false;
+		}
+		
+		try {
+			font.encode(Character.toString(character));
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+	
+	private boolean isChinese(char c) {
 		return c >= 0x4E00 && c <= 0x9FA5;
 	}
 
