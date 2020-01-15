@@ -17,8 +17,7 @@ public class HelloRest {
     @GetMapping("hello")
     public  String sayHello(@RequestParam(required = false, name = "who") String who) {
         who = StringUtils.isEmpty(who) ? "World" : who;
-        log.info("hello, {}", who);
-        return String.format("Hello, %s", who);
+        return String.format("Hello678, %s", who);
     }
 
     @GetMapping("application-info")
